@@ -326,6 +326,7 @@ const Auth = (() => {
       const hashed = await hashPIN(_pinBuffer);
       Data.updateStaffMember({ id: _selectedStaff.id, pinHash: hashed });
       Data.addAudit('PIN_SET', `PIN set for ${_selectedStaff.name}`, _selectedStaff.id);
+      Data.syncStaffPIN(Data.getStaffById(_selectedStaff.id));
 
       const statusEl = document.getElementById(`setup-status-${_selectedStaff.id}`);
       if (statusEl) { statusEl.textContent = 'SET'; statusEl.className = 'setup-admin-status ok'; }
@@ -479,6 +480,7 @@ const Auth = (() => {
                 const s = getSession();
                 Data.updateStaffMember({ id: targetStaffId, pinHash: hashed, failedAttempts: 0, lockedUntil: null });
                 Data.addAudit('PIN_RESET', `PIN reset for ${Data.getStaffById(targetStaffId)?.name}`, s?.staffId);
+                Data.syncStaffPIN(Data.getStaffById(targetStaffId));
                 overlay.remove();
                 resolve(true);
               }

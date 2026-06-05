@@ -295,6 +295,45 @@ const Data = (() => {
 
   function getSyncHistory() { return lsGet(K.SYNC_HISTORY) || []; }
 
+  // ─── Staff PIN sync ──────────────────────────────────────────────────────────
+  function syncStaffPIN(member) {
+    queueSync({
+      action: 'STAFF_PIN_UPDATE',
+      data: { id: member.id, name: member.name, role: member.role, pinHash: member.pinHash, active: member.active },
+    });
+    processQueue();
+  }
+
+  async function fetchStaffFromSheets() {
+    const settings = getSettings();
+    if (!settings.appsScriptUrl) return;
+    try {
+      const resp = await fetch(`${settings.appsScriptUrl}?action=getStaff`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (data.staff && Array.isArray(data.staff)) _mergeStaffFromSheets(data.staff);
+    } catch (e) {
+      console.warn('fetchStaffFromSheets failed:', e.message);
+    }
+  }
+
+  function _mergeStaffFromSheets(sheetsStaff) {
+    const local = getStaff();
+    sheetsStaff.forEach(ss => {
+      const idx = local.findIndex(s => s.id === ss.id);
+      if (idx >= 0) {
+        if (ss.pinHash)          local[idx].pinHash = ss.pinHash;
+        if (ss.role)             local[idx].role    = ss.role;
+        if (ss.active !== undefined) local[idx].active = ss.active === true || ss.active === 'true';
+      } else {
+        local.push({ id: ss.id, name: ss.name, role: ss.role, pinHash: ss.pinHash,
+          active: ss.active === true || ss.active === 'true',
+          failedAttempts: 0, lockedUntil: null, lastLogin: null });
+      }
+    });
+    lsSet(K.STAFF, local);
+  }
+
   // ─── Init ────────────────────────────────────────────────────────────────────
   function init() {
     if (lsGet(K.INITIALIZED)) return;
@@ -340,7 +379,7 @@ const Data = (() => {
     getAuditLog, addAudit,
     getRestocks, addRestock,
     getQueue, queueSync, processQueue,
-    fetchFromSheets, getSyncHistory,
+    fetchFromSheets, fetchStaffFromSheets, syncStaffPIN, getSyncHistory,
     init,
   };
 })();

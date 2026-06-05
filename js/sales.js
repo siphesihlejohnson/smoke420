@@ -10,28 +10,36 @@ const Sales = (() => {
     const products = Data.getActiveProducts();
     const s = Auth.getSession();
 
+    const customers = Data.getCustomers().sort((a,b) => (a.name||'').localeCompare(b.name||''));
+
     container.innerHTML = `
       <div class="content-inner">
         ${UI.panel('CAPTURE SALE', `
           <div class="sale-form">
             <div class="form-row">
-              <div class="form-group">
-                <label>CUSTOMER PHONE</label>
-                <div class="input-with-btn">
-                  <input type="tel" id="s-phone" maxlength="10" placeholder="0821234567" autocomplete="off">
-                  <button class="btn btn-sm" id="btn-lookup">LOOKUP</button>
+              <div class="form-group flex-2">
+                <label>CUSTOMER — select existing or type phone to add new</label>
+                <div class="cust-select-row">
+                  <select id="s-cust-select">
+                    <option value="">-- SELECT EXISTING CUSTOMER --</option>
+                    ${customers.map(c => `<option value="${UI.esc(c.phone)}" data-name="${UI.esc(c.name)}">${UI.esc(c.name)} (${c.phone})</option>`).join('')}
+                    <option value="__new__">+ NEW CUSTOMER</option>
+                  </select>
                 </div>
               </div>
-              <div class="form-group" id="cust-info-box" style="display:none">
-                <label>CUSTOMER INFO</label>
-                <div class="cust-info" id="cust-info"></div>
+            </div>
+            <div class="form-row" id="new-cust-row" style="display:none">
+              <div class="form-group">
+                <label>PHONE *</label>
+                <input type="tel" id="s-phone" maxlength="10" placeholder="0821234567" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label>NAME *</label>
+                <input type="text" id="s-name" placeholder="Customer name" autocomplete="off">
               </div>
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>CUSTOMER NAME</label>
-                <input type="text" id="s-name" placeholder="Enter name" autocomplete="off">
-              </div>
+            <div id="cust-info-box" style="display:none">
+              <div class="cust-info" id="cust-info"></div>
             </div>
             <div class="form-row">
               <div class="form-group flex-2">
@@ -80,11 +88,7 @@ const Sales = (() => {
     `;
 
     // Bind events
-    document.getElementById('btn-lookup').addEventListener('click', doLookup);
-    document.getElementById('s-phone').addEventListener('keydown', e => { if (e.key === 'Enter') doLookup(); });
-    document.getElementById('s-phone').addEventListener('input', () => {
-      document.getElementById('cust-info-box').style.display = 'none';
-    });
+    document.getElementById('s-cust-select').addEventListener('change', onCustomerSelect);
     document.getElementById('s-product').addEventListener('change', onProductChange);
     document.getElementById('s-qty').addEventListener('input', updateTotal);
     document.getElementById('s-price').addEventListener('input', updateTotal);
@@ -106,30 +110,42 @@ const Sales = (() => {
     }
   }
 
-  function doLookup() {
-    const phone = document.getElementById('s-phone').value.trim();
-    if (!phone) return;
-    const customer = Data.getCustomerByPhone(phone);
+  function onCustomerSelect() {
+    const sel = document.getElementById('s-cust-select');
+    const val = sel.value;
+    const newRow = document.getElementById('new-cust-row');
     const infoBox = document.getElementById('cust-info-box');
     const info = document.getElementById('cust-info');
-    const nameEl = document.getElementById('s-name');
 
+    if (!val) {
+      newRow.style.display = 'none';
+      infoBox.style.display = 'none';
+      return;
+    }
+
+    if (val === '__new__') {
+      newRow.style.display = '';
+      infoBox.style.display = 'none';
+      document.getElementById('s-phone').value = '';
+      document.getElementById('s-name').value = '';
+      document.getElementById('s-phone').focus();
+      return;
+    }
+
+    // Existing customer selected
+    newRow.style.display = 'none';
+    const customer = Data.getCustomerByPhone(val);
     if (customer) {
-      nameEl.value = customer.name;
       infoBox.style.display = '';
       info.innerHTML = `
         <div class="cust-found">
           <span class="cust-tag found">EXISTING CUSTOMER</span>
-          <strong>${UI.esc(customer.name)}</strong><br>
+          <strong>${UI.esc(customer.name)}</strong> &nbsp;|&nbsp; ${customer.phone}<br>
           Visits: ${customer.visits || 0} &nbsp;|&nbsp; Spent: ${UI.fmtCurrency(customer.totalSpent || 0)}<br>
           ${customer.favProduct ? `Fav: ${UI.esc(customer.favProduct)}<br>` : ''}
-          ${customer.lastPurchase ? `Last: ${Data.fmtDate(customer.lastPurchase)}` : ''}
+          ${customer.lastPurchase ? `Last seen: ${Data.fmtDate(customer.lastPurchase)}` : ''}
         </div>
       `;
-    } else if (phone) {
-      infoBox.style.display = '';
-      info.innerHTML = `<span class="cust-tag new">NEW CUSTOMER — will be created on save</span>`;
-      nameEl.focus();
     }
   }
 
@@ -161,17 +177,28 @@ const Sales = (() => {
   }
 
   async function confirmSale() {
-    const phone  = document.getElementById('s-phone').value.trim();
-    const name   = document.getElementById('s-name').value.trim();
+    const sel    = document.getElementById('s-cust-select');
+    const selVal = sel?.value || '';
+
+    let phone, name;
+    if (selVal && selVal !== '__new__') {
+      const c = Data.getCustomerByPhone(selVal);
+      phone = selVal;
+      name  = c ? c.name : selVal;
+    } else {
+      phone = (document.getElementById('s-phone')?.value || '').trim();
+      name  = (document.getElementById('s-name')?.value || '').trim();
+    }
+
     const prodId = document.getElementById('s-product').value;
     const qty    = parseFloat(document.getElementById('s-qty').value);
     const price  = parseFloat(document.getElementById('s-price').value);
 
-    if (!prodId)        { UI.toast('Select a product', 'error'); return; }
+    if (!prodId)          { UI.toast('Select a product', 'error'); return; }
     if (!qty || qty <= 0) { UI.toast('Enter a valid quantity', 'error'); return; }
     if (!price || price < 0) { UI.toast('Enter a valid price', 'error'); return; }
-    if (!phone)         { UI.toast('Enter customer phone number', 'error'); return; }
-    if (!name)          { UI.toast('Enter customer name', 'error'); return; }
+    if (!phone)           { UI.toast('Select or enter a customer', 'error'); return; }
+    if (!name)            { UI.toast('Enter customer name', 'error'); return; }
 
     const product = Data.getProductById(prodId);
     if (!product) { UI.toast('Product not found', 'error'); return; }
@@ -222,8 +249,14 @@ const Sales = (() => {
   }
 
   function clearForm() {
-    document.getElementById('s-phone').value = '';
-    document.getElementById('s-name').value = '';
+    const sel = document.getElementById('s-cust-select');
+    if (sel) sel.value = '';
+    const phone = document.getElementById('s-phone');
+    const name  = document.getElementById('s-name');
+    if (phone) phone.value = '';
+    if (name)  name.value  = '';
+    const newRow = document.getElementById('new-cust-row');
+    if (newRow) newRow.style.display = 'none';
     document.getElementById('s-product').value = '';
     document.getElementById('s-unit').value = '';
     document.getElementById('s-qty').value = '1';
@@ -234,7 +267,7 @@ const Sales = (() => {
     _payMethod = 'CASH';
     document.getElementById('btn-cash').classList.add('active');
     document.getElementById('btn-eft').classList.remove('active');
-    document.getElementById('s-phone').focus();
+    if (sel) sel.focus();
   }
 
   function renderOwnSales() {

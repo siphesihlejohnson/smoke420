@@ -57,7 +57,7 @@
 
   <!-- ── Bootstrap ──────────────────────────────────────────────────────────── -->
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       // Initialise data layer (seeds if fresh install)
       Data.init();
 
@@ -67,6 +67,10 @@
 
       // Start UI clock
       UI.init();
+
+      // Fetch staff PINs from Sheets before showing login —
+      // ensures any device can log in without going through setup wizard again
+      await Data.fetchStaffFromSheets();
 
       // Determine starting state
       if (Auth.isLoggedIn()) {

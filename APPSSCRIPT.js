@@ -8,6 +8,7 @@ const SHEET_NAME_SALES     = 'Sales';
 const SHEET_NAME_INVENTORY = 'Inventory';
 const SHEET_NAME_CUSTOMERS = 'Customers';
 const SHEET_NAME_SUMMARY   = 'Summary';
+const SHEET_NAME_STAFF     = 'Staff';
 
 // ── Entry Points ─────────────────────────────────────────────────────────────
 
@@ -18,6 +19,16 @@ function doGet(e) {
     return respond({ status: 'ok', version: '1.0' });
   }
 
+  if (action === 'getStaff') {
+    try {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const staff = sheetToObjects(getOrCreateSheet(ss, SHEET_NAME_STAFF, getStaffHeaders()));
+      return respond({ staff });
+    } catch (err) {
+      return respond({ error: err.message }, 500);
+    }
+  }
+
   // Default: return all data
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -26,6 +37,7 @@ function doGet(e) {
       inventory: sheetToObjects(getOrCreateSheet(ss, SHEET_NAME_INVENTORY, getInventoryHeaders())),
       customers: sheetToObjects(getOrCreateSheet(ss, SHEET_NAME_CUSTOMERS, getCustomerHeaders())),
       summary:   sheetToObjects(getOrCreateSheet(ss, SHEET_NAME_SUMMARY,   getSummaryHeaders())),
+      staff:     sheetToObjects(getOrCreateSheet(ss, SHEET_NAME_STAFF,     getStaffHeaders())),
     };
     return respond(result);
   } catch (err) {
@@ -57,6 +69,9 @@ function doPost(e) {
       case 'RESTOCK':
         processRestock(ss, data);
         updateSummary(ss);
+        break;
+      case 'STAFF_PIN_UPDATE':
+        upsertStaff(ss, data);
         break;
       default:
         return respond({ status: 'unknown_action', action });
@@ -114,6 +129,9 @@ function getSalesHeaders() {
 function getInventoryHeaders() {
   return ['id','name','category','unit','price','stock','sold','active','lastUpdated'];
 }
+function getStaffHeaders() {
+  return ['id','name','role','pinHash','active'];
+}
 function getCustomerHeaders() {
   return ['phone','name','notes','firstPurchase','lastPurchase','totalSpent','visits','favProduct','addedBy','lastUpdated'];
 }
@@ -163,6 +181,20 @@ function processRestock(ss, data) {
   const currentStock = sheet.getRange(rowNum, stockCol).getValue() || 0;
   sheet.getRange(rowNum, stockCol).setValue(Number(currentStock) + Number(data.qty));
   sheet.getRange(rowNum, updCol).setValue(new Date().toISOString());
+}
+
+// ── Staff ─────────────────────────────────────────────────────────────────────
+
+function upsertStaff(ss, data) {
+  const sheet = getOrCreateSheet(ss, SHEET_NAME_STAFF, getStaffHeaders());
+  const headers = getStaffHeaders();
+  const rowNum = findRowByColumn(sheet, 0, data.id);
+  const row = headers.map(h => data[h] !== undefined ? data[h] : '');
+  if (rowNum > 0) {
+    sheet.getRange(rowNum, 1, 1, row.length).setValues([row]);
+  } else {
+    sheet.appendRow(row);
+  }
 }
 
 // ── Customers ─────────────────────────────────────────────────────────────────
