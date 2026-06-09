@@ -619,6 +619,27 @@ textarea { resize: vertical; min-height: 60px; }
 .modal-box .num-btn { padding: 10px; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   CREDIT
+══════════════════════════════════════════════════════════════════════════════ */
+.pay-btn-credit.active { background: var(--amber); color: var(--bg); border-color: var(--amber); }
+.credit-summary {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 8px 0 12px;
+}
+.credit-summary-label {
+  font-size: 0.65rem; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.1em;
+}
+.credit-summary-value {
+  font-size: 1.25rem; font-weight: 700; color: var(--accent);
+}
+.credit-summary-amber { color: var(--amber); }
+.stat-card-amber { border-top-color: var(--amber); }
+.stat-card-amber .stat-value,
+.stat-value-amber { color: var(--amber); }
+.stat-card-hi { border-top-color: var(--accent-hi); border-width: 3px; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
    RESPONSIVE
 ══════════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 600px) {

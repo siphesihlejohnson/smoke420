@@ -66,6 +66,9 @@ function doPost(e) {
       case 'CUSTOMER_DELETE':
         deleteCustomerRow(ss, data.phone);
         break;
+      case 'SALE_UPDATE':
+        updateSaleRow(ss, data);
+        break;
       case 'RESTOCK':
         processRestock(ss, data);
         updateSummary(ss);
@@ -124,7 +127,7 @@ function findRowByColumn(sheet, colIndex, value) {
 // ── Headers ────────────────────────────────────────────────────────────────
 
 function getSalesHeaders() {
-  return ['id','date','time','product','productId','category','unit','qty','amount','payment','customer','phone','staff','createdAt'];
+  return ['id','date','time','product','productId','category','unit','qty','amount','payment','customer','phone','staff','createdAt','creditPaid','creditPaidAt'];
 }
 function getInventoryHeaders() {
   return ['id','name','category','unit','price','stock','sold','active','lastUpdated'];
@@ -140,6 +143,16 @@ function getSummaryHeaders() {
 }
 
 // ── Sales ─────────────────────────────────────────────────────────────────────
+
+function updateSaleRow(ss, data) {
+  const sheet = getOrCreateSheet(ss, SHEET_NAME_SALES, getSalesHeaders());
+  const rowNum = findRowByColumn(sheet, 0, data.id);
+  if (rowNum < 0) return;
+  const headers = getSalesHeaders();
+  headers.forEach((h, i) => {
+    if (data[h] !== undefined) sheet.getRange(rowNum, i + 1).setValue(data[h]);
+  });
+}
 
 function appendSale(ss, data) {
   const sheet = getOrCreateSheet(ss, SHEET_NAME_SALES, getSalesHeaders());

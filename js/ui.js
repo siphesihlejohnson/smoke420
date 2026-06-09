@@ -10,19 +10,23 @@ const UI = (() => {
   let _clockInterval = null;
 
   const TABS_ADMIN = [
-    { id: 'dashboard', label: 'DASHBOARD', fn: 1 },
+    { id: 'dashboard', label: 'DASHBOARD',    fn: 1 },
     { id: 'sale',      label: 'CAPTURE SALE', fn: 2 },
     { id: 'log',       label: 'SALES LOG',    fn: 3 },
     { id: 'inventory', label: 'INVENTORY',    fn: 4 },
     { id: 'customers', label: 'CUSTOMERS',    fn: 5 },
     { id: 'reports',   label: 'REPORTS',      fn: 6 },
-    { id: 'admin',     label: 'ADMIN',        fn: 7 },
-    { id: 'setup',     label: 'SETUP',        fn: 8 },
+    { id: 'cashup',    label: 'CASH-UP',      fn: 7 },
+    { id: 'credit',    label: 'CREDIT',       fn: 8 },
+    { id: 'admin',     label: 'ADMIN'              },
+    { id: 'setup',     label: 'SETUP'              },
   ];
   const TABS_STAFF = [
-    { id: 'sale',  label: 'CAPTURE SALE', fn: 2 },
-    { id: 'log',   label: 'SALES LOG',    fn: 3 },
-    { id: 'setup', label: 'SETUP',        fn: 8 },
+    { id: 'sale',   label: 'CAPTURE SALE', fn: 2 },
+    { id: 'log',    label: 'SALES LOG',    fn: 3 },
+    { id: 'cashup', label: 'CASH-UP',      fn: 4 },
+    { id: 'credit', label: 'CREDIT',       fn: 5 },
+    { id: 'setup',  label: 'SETUP'              },
   ];
 
   function init() {
@@ -52,7 +56,15 @@ const UI = (() => {
       : (s?.role === 'admin' ? 'dashboard' : 'sale');
     navigate(startTab);
 
-    Data.fetchFromSheets().then(() => Data.processQueue());
+    Data.fetchFromSheets().then(() => {
+      Data.processQueue();
+      // Re-render the current tab with fresh Sheets data so staff see all synced sales
+      if (App.currentTab === 'sale') {
+        Sales.renderOwnSales();
+      } else {
+        navigate(App.currentTab);
+      }
+    });
   }
 
   function showLogin() {
@@ -83,6 +95,8 @@ const UI = (() => {
       case 'inventory': Inventory.render(content); break;
       case 'customers': Customers.render(content); break;
       case 'reports':   Reports.render(content); break;
+      case 'cashup':    CashUp.render(content); break;
+      case 'credit':    Credit.render(content); break;
       case 'admin':     Admin.render(content); break;
       case 'setup':     Setup.render(content); break;
     }
@@ -127,7 +141,7 @@ const UI = (() => {
   function renderFnBar() {
     const s = Auth.getSession();
     const tabs = s?.role === 'admin' ? TABS_ADMIN : TABS_STAFF;
-    document.getElementById('fn-bar').innerHTML = tabs.map(t => `
+    document.getElementById('fn-bar').innerHTML = tabs.filter(t => t.fn).map(t => `
       <button class="fn-btn" onclick="UI.navigate('${t.id}')">
         <span class="fn-key">F${t.fn}</span>
         <span class="fn-label">${t.label.length > 8 ? t.label.substr(0,8) : t.label}</span>

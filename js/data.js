@@ -65,6 +65,16 @@ const Data = (() => {
   }
   function deleteSale(id) { lsSet(K.SALES, getSales().filter(s => s.id !== id)); }
   function getSalesByStaff(staffId) { return getSales().filter(s => s.staff === staffId); }
+  function markCreditPaid(saleId) {
+    const sales = getSales();
+    const idx = sales.findIndex(s => s.id === saleId);
+    if (idx < 0) return false;
+    sales[idx].creditPaid = true;
+    sales[idx].creditPaidAt = ts();
+    lsSet(K.SALES, sales);
+    queueSync({ action: 'SALE_UPDATE', data: sales[idx] });
+    return sales[idx];
+  }
 
   // ─── Products ────────────────────────────────────────────────────────────────
   function getProducts() { return lsGet(K.PRODUCTS) || []; }
@@ -271,9 +281,23 @@ const Data = (() => {
   function _mergeFromSheets(data) {
     if (data.sales && Array.isArray(data.sales)) {
       const local = getSales();
-      const ids = new Set(local.map(s => s.id));
-      const incoming = data.sales.filter(s => !ids.has(s.id));
-      if (incoming.length) lsSet(K.SALES, [...local, ...incoming]);
+      const localById = {};
+      local.forEach((s, i) => { localById[s.id] = i; });
+      let changed = false;
+      const incoming = [];
+      data.sales.forEach(s => {
+        if (localById[s.id] !== undefined) {
+          const idx = localById[s.id];
+          if (s.creditPaid && !local[idx].creditPaid) {
+            local[idx].creditPaid = true;
+            local[idx].creditPaidAt = s.creditPaidAt || ts();
+            changed = true;
+          }
+        } else {
+          incoming.push(s);
+        }
+      });
+      if (incoming.length || changed) lsSet(K.SALES, [...local, ...incoming]);
     }
     if (data.inventory && Array.isArray(data.inventory)) {
       const local = getProducts();
@@ -372,7 +396,7 @@ const Data = (() => {
     lsGet, lsSet, genId, fmtDate, fmtTime,
     getSettings, saveSettings,
     getStaff, saveStaff, getStaffById, updateStaffMember, addStaffMember,
-    getSales, addSale, updateSale, deleteSale, getSalesByStaff,
+    getSales, addSale, updateSale, deleteSale, getSalesByStaff, markCreditPaid,
     getProducts, getActiveProducts, getProductById, saveProductRecord, deductStock,
     getCustomers, getCustomerByPhone, upsertCustomer, deleteCustomer,
     updateCustomerAfterSale, createCustomerFromSale,

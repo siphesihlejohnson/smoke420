@@ -74,6 +74,7 @@ const Sales = (() => {
                 <div class="pay-toggle">
                   <button class="pay-btn active" id="btn-cash" data-method="CASH">CASH</button>
                   <button class="pay-btn" id="btn-eft" data-method="EFT">EFT</button>
+                  <button class="pay-btn pay-btn-credit" id="btn-credit" data-method="CREDIT">CREDIT</button>
                 </div>
               </div>
             </div>
@@ -94,6 +95,7 @@ const Sales = (() => {
     document.getElementById('s-price').addEventListener('input', updateTotal);
     document.getElementById('btn-cash').addEventListener('click', () => setPayment('CASH'));
     document.getElementById('btn-eft').addEventListener('click', () => setPayment('EFT'));
+    document.getElementById('btn-credit').addEventListener('click', () => setPayment('CREDIT'));
     document.getElementById('btn-confirm-sale').addEventListener('click', confirmSale);
     document.getElementById('btn-clear-sale').addEventListener('click', clearForm);
 
@@ -174,6 +176,7 @@ const Sales = (() => {
     _payMethod = method;
     document.getElementById('btn-cash').classList.toggle('active', method === 'CASH');
     document.getElementById('btn-eft').classList.toggle('active', method === 'EFT');
+    document.getElementById('btn-credit').classList.toggle('active', method === 'CREDIT');
   }
 
   async function confirmSale() {
@@ -267,6 +270,7 @@ const Sales = (() => {
     _payMethod = 'CASH';
     document.getElementById('btn-cash').classList.add('active');
     document.getElementById('btn-eft').classList.remove('active');
+    document.getElementById('btn-credit').classList.remove('active');
     if (sel) sel.focus();
   }
 
@@ -283,7 +287,7 @@ const Sales = (() => {
     ));
   }
 
-  return { render };
+  return { render, renderOwnSales };
 })();
 
 // ─── Sales Log ────────────────────────────────────────────────────────────────
